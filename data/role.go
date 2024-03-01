@@ -6,19 +6,19 @@ import (
 )
 
 type Role struct {
-	ID          int           `db:"id"`
-	Name        string        `db:"name"`
-	Alignment   string        `db:"alignment"`
-	AbilityIDs  pq.Int32Array `db:"ability_ids"`
-	PassiveIDs  pq.Int32Array `db:"passive_ids"`
+	ID         int           `db:"id"`
+	Name       string        `db:"name"`
+	Alignment  string        `db:"alignment"`
+	AbilityIDs pq.Int32Array `db:"ability_ids"`
+	PassiveIDs pq.Int32Array `db:"passive_ids"`
 }
 
 type ComplexRole struct {
-	ID          int        `db:"id"`
-	Name        string     `db:"name"`
-	Alignment   string     `db:"alignment"`
-	Abilities   []*Ability `db:"abilities"`
-	Passives    []*Passive `db:"passives"`
+	ID        int        `db:"id"`
+	Name      string     `db:"name"`
+	Alignment string     `db:"alignment"`
+	Abilities []*Ability `db:"abilities"`
+	Passives  []*Passive `db:"passives"`
 }
 
 type RoleModel struct {
@@ -73,6 +73,24 @@ func (rm *RoleModel) GetComplexByName(name string) (*ComplexRole, error) {
 func (rm *RoleModel) GetAll() ([]*Role, error) {
 	var roles []*Role
 	err := rm.DB.Select(&roles, "SELECT * FROM roles")
+	if err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (rm *RoleModel) GetAllByPassiveID(id int) ([]*Role, error) {
+	var roles []*Role
+	err := rm.DB.Select(&roles, "SELECT * FROM roles WHERE $1 = ANY(passive_ids)", id)
+	if err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (rm *RoleModel) GetAllByAbilityID(id int) ([]*Role, error) {
+	var roles []*Role
+	err := rm.DB.Select(&roles, "SELECT * FROM roles WHERE $1 = ANY(ability_ids)", id)
 	if err != nil {
 		return nil, err
 	}

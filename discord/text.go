@@ -233,3 +233,26 @@ func SilentWarningMessage(ctx ken.Context,
 
 	return ctx.Respond(resp)
 }
+
+func ComponentColorByRarity(rarity string) int {
+	var color int
+	switch rarity {
+	case "Common":
+		color = ColorItemCommon
+	case "Uncommon":
+		color = ColorItemUncommon
+	case "Rare":
+		color = ColorItemRare
+	case "Epic":
+		color = ColorItemEpic
+	case "Legendary":
+		color = ColorItemLegendary
+	case "Mythical":
+		color = ColorItemMythical
+	case "Unique":
+		color = ColorItemUncommon
+	default:
+		color = 0x000000
+	}
+	return color
+}

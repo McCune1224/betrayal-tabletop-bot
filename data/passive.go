@@ -23,3 +23,13 @@ func (pm *PassiveModel) Get(id int) (*Passive, error) {
 	}
 	return &passive, nil
 }
+
+func (pm *PassiveModel) GetByName(name string) (*Passive, error) {
+	query := `SELECT * FROM passives WHERE name = $1`
+	var passive Passive
+	err := pm.DB.Get(&passive, query, name)
+	if err != nil {
+		return nil, err
+	}
+	return &passive, nil
+}

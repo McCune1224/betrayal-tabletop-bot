@@ -32,3 +32,13 @@ func (am *AbilityModel) Get(id int) (*Ability, error) {
 	}
 	return &ability, nil
 }
+
+func (am *AbilityModel) GetByName(name string) (*Ability, error) {
+	query := `SELECT * FROM abilities WHERE name ILIKE $1`
+	var ability Ability
+	err := am.DB.Get(&ability, query, name)
+	if err != nil {
+		return nil, err
+	}
+	return &ability, nil
+}

@@ -42,22 +42,22 @@ func (*View) Options() []*discordgo.ApplicationCommandOption {
 				discord.StringCommandArg("name", "Name of the role", true),
 			},
 		},
-		// {
-		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-		// 	Name:        "ability",
-		// 	Description: "View an ability",
-		// 	Options: []*discordgo.ApplicationCommandOption{
-		// 		discord.StringCommandArg("name", "Name of the role", true),
-		// 	},
-		// },
-		// {
-		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-		// 	Name:        "passive",
-		// 	Description: "View a passive",
-		// 	Options: []*discordgo.ApplicationCommandOption{
-		// 		discord.StringCommandArg("name", "Name of the role", true),
-		// 	},
-		// },
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "ability",
+			Description: "View an ability",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.StringCommandArg("name", "Name of the role", true),
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "passive",
+			Description: "View a passive",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.StringCommandArg("name", "Name of the passive", true),
+			},
+		},
 		{
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
 			Name:        "item",
@@ -74,6 +74,11 @@ func (*View) Options() []*discordgo.ApplicationCommandOption {
 				discord.StringCommandArg("name", "Name of the status", true),
 			},
 		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "duel",
+			Description: "View how minigame Duel works",
+		},
 	}
 }
 
@@ -81,11 +86,11 @@ func (*View) Options() []*discordgo.ApplicationCommandOption {
 func (v *View) Run(ctx ken.Context) (err error) {
 	err = ctx.HandleSubCommands(
 		ken.SubCommandHandler{Name: "role", Run: v.viewRole},
-		// ken.SubCommandHandler{Name: "ability", Run: v.viewAbility},
-		// ken.SubCommandHandler{Name: "perk", Run: v.viewPerk},
+		ken.SubCommandHandler{Name: "ability", Run: v.viewAbility},
+		ken.SubCommandHandler{Name: "passive", Run: v.viewPassive},
 		ken.SubCommandHandler{Name: "item", Run: v.viewItem},
 		ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
-		// ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
+		ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
 	)
 	return err
 }
@@ -203,25 +208,6 @@ func (v *View) roleEmbed(role *data.Role) (*discordgo.MessageEmbed, error) {
 }
 
 func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
-	color := 0x000000
-	switch item.Rarity {
-	case "Common":
-		color = discord.ColorItemCommon
-	case "Uncommon":
-		color = discord.ColorItemUncommon
-	case "Rare":
-		color = discord.ColorItemRare
-	case "Epic":
-		color = discord.ColorItemEpic
-	case "Legendary":
-		color = discord.ColorItemLegendary
-	case "Mythical":
-		color = discord.ColorItemMythical
-	case "Unique":
-		color = discord.ColorItemUncommon
-
-	}
-
 	categories := strings.Join(item.Categories, ", ")
 	fields := []*discordgo.MessageEmbedField{}
 	fields = append(fields, &discordgo.MessageEmbedField{
@@ -241,7 +227,7 @@ func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
 		Title:       item.Name,
 		Description: item.Description,
 		Fields:      fields,
-		Color:       color,
+		Color:       discord.ComponentColorByRarity(item.Rarity),
 		Footer: &discordgo.MessageEmbedFooter{
 			Text: costStr,
 		},
@@ -277,4 +263,120 @@ func (v *View) viewStatus(c ken.SubCommandContext) (err error) {
 		Color:       discord.ColorThemeWhite,
 	}
 	return c.RespondEmbed(embed)
+}
+
+func (v *View) viewDuel(ctx ken.SubCommandContext) (err error) {
+	gameText := []string{
+		fmt.Sprintf("In %s players will present one out of nine number tiles and the player who presented the higher numbered tile wins.", discord.Bold("Black and White")),
+		fmt.Sprintf("The players will each receive 9 number tiles from 0 to 8. The 9 tiles are divided into black and white colors. %s", discord.Bold("Even numbers 0, 2, 4, 6 and 8 are black. Odd numbers 1, 3, 5 and 7 are white.\n")),
+		fmt.Sprintf("The starting player will first choose a number from 0 to 8 (selecting the number in their confessional), The host will announce publicly %s. The following player will then present their tile. Only hosts will see numbers used, and the player who put a higher number will win and gain one point. %s.", discord.Bold("what color was used"), discord.Bold("Used numbers will not be revealed even after the results are announced")),
+		"Example: Sophia begins the game and uses a 3. The host will announce: Sophia has used a white tile. Lindsey will place a black tile, a 0. Host will announce a black tile was used. Host will announce that Sophia has won. Both tiles/numbers are taken away and a new round begins, the winner goes first in presenting the tile for the next round. Lindsey can infer very little from her loss because any white tile can beat a black 0, but Sophia will know that she used either a 0 or a 2 based on her win.",
+		"The player with more points after 9th round will win, the loser will be eliminated.",
+	}
+
+	return ctx.RespondEmbed(&discordgo.MessageEmbed{
+		Title:       "Game Duel - Black and White",
+		Color:       discord.ColorThemePearl,
+		Description: gameText[0],
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Value: gameText[1],
+			},
+			{
+				Value: gameText[2],
+			},
+			{
+				Value: gameText[3],
+			},
+			{
+				Value: gameText[4],
+			},
+		},
+	})
+}
+
+func (v *View) viewPassive(ctx ken.SubCommandContext) (err error) {
+	if err = ctx.Defer(); err != nil {
+		return err
+	}
+	nameArg := ctx.Options().GetByName("name").StringValue()
+	passive, err := v.models.Passives.GetByName(nameArg)
+	if err != nil {
+		ctx.RespondError("Unable to find Passive",
+			fmt.Sprintf("Unable to find Passive: %s", nameArg),
+		)
+		return err
+	}
+
+	associatedRoles, err := v.models.Roles.GetAllByPassiveID(passive.ID)
+	if err != nil {
+		log.Println(err)
+		discord.ErrorMessage(ctx,
+			"Error Finding Role",
+			fmt.Sprintf("Unable to find Associated Role for Ability: %s", nameArg))
+		return err
+	}
+
+	rolenames := []string{}
+	for _, v := range associatedRoles {
+		rolenames = append(rolenames, v.Name)
+	}
+
+	passiveEmbed := &discordgo.MessageEmbed{
+		Title:       passive.Name,
+		Description: passive.Description,
+		Color:       discord.ColorThemeWhite,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: fmt.Sprintf("Associated Roles: %s", strings.Join(rolenames, ", ")),
+		},
+	}
+	return ctx.RespondEmbed(passiveEmbed)
+}
+
+func (v *View) viewAbility(ctx ken.SubCommandContext) (err error) {
+	if err = ctx.Defer(); err != nil {
+		log.Println(err)
+		return err
+	}
+	nameArg := ctx.Options().GetByName("name").StringValue()
+	// ability, err := v.models.Abilities.GetByFuzzy(nameArg)
+	ability, err := v.models.Abilities.GetByName(nameArg)
+	if err != nil {
+		discord.ErrorMessage(ctx,
+			"Error Finding Ability",
+			fmt.Sprintf("Unable to find Ability: %s", nameArg),
+		)
+		return err
+	}
+
+	associatedRoles, err := v.models.Roles.GetAllByAbilityID(ability.ID)
+	if err != nil {
+		log.Println(err)
+		return discord.ErrorMessage(ctx,
+			"Error Finding Role",
+			fmt.Sprintf("Unable to find Associated Role for Ability: %s", nameArg))
+	}
+
+	roleNames := []string{}
+	for _, v := range associatedRoles {
+		roleNames = append(roleNames, v.Name)
+	}
+
+	abilityEmbed := &discordgo.MessageEmbed{
+		Title:       ability.Name,
+		Description: ability.Description,
+		Color:       discord.ComponentColorByRarity(ability.Rarity),
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:   "Categories",
+				Value:  strings.Join(ability.Categories, ", "),
+				Inline: true,
+			},
+		},
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: fmt.Sprintf("Associated Roles: %s", strings.Join(roleNames, ", ")),
+		},
+	}
+
+	return ctx.RespondEmbed(abilityEmbed)
 }
