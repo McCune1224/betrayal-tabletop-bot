@@ -172,7 +172,7 @@ Counting Stars,Counting Stars,"Every time one of your neighbors die, you gain an
 ,Outlander,,,,,
 ,Abilities:,Charges,Type,Description,Categories,Rarity (if AA)
 ,Pandemonium,3,*,"Make a target player 'mad' about being a role. You choose the player and the role. The target player must make a concerted effort to portray themselves as that role to other players for two cycles. Breaking madness leads to insta-death, bypassing everything.",Debuff/Negative/Visiting/Night,Epic
-,Perks:,Description,,,,
+,Passives:,Description,,,,
 ,Ace of Hearts,"When targeted by a negative ability, the inflictor is made mad as the Magician.",,,,
 ,White Rabbit,"Any common AA used by you cannot be linked back to you, it will always be masked. You can use one of your common AAs for free each day, even if it has 0 charges.",,,,
 ,,,,,,

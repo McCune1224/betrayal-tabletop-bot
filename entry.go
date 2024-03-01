@@ -96,3 +96,48 @@ type SheetRole struct {
 	A []data.Ability
 	P []data.Passive
 }
+
+func ReadItemCSV(filepath string) ([]data.Item, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	reader := csv.NewReader(file)
+	items := []data.Item{}
+	i := 0
+	for {
+		var item data.Item
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// skip first line of csv
+		if i == 0 || i == 1 {
+			i++
+			continue
+		}
+		item.Rarity = strings.TrimSpace(record[1])
+		item.Name = strings.TrimSpace(record[2])
+		cost := -1
+		if record[3] != "X" {
+			cost, err = strconv.Atoi(record[3])
+			if err != nil {
+				return nil, err
+			}
+		}
+		categories := strings.Split(record[4], "/")
+		for _, c := range categories {
+			item.Categories = append(item.Categories, strings.TrimSpace(c))
+		}
+		item.Description = strings.TrimSpace(record[5])
+		item.Cost = cost
+		items = append(items, item)
+		i++
+	}
+
+	return items, nil
+}

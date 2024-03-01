@@ -58,14 +58,14 @@ func (*View) Options() []*discordgo.ApplicationCommandOption {
 		// 		discord.StringCommandArg("name", "Name of the role", true),
 		// 	},
 		// },
-		// {
-		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-		// 	Name:        "item",
-		// 	Description: "View an item",
-		// 	Options: []*discordgo.ApplicationCommandOption{
-		// 		discord.StringCommandArg("name", "Name of the role", true),
-		// 	},
-		// },
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "item",
+			Description: "View an item",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.StringCommandArg("name", "Name of the role", true),
+			},
+		},
 	}
 }
 
@@ -75,7 +75,7 @@ func (v *View) Run(ctx ken.Context) (err error) {
 		ken.SubCommandHandler{Name: "role", Run: v.viewRole},
 		// ken.SubCommandHandler{Name: "ability", Run: v.viewAbility},
 		// ken.SubCommandHandler{Name: "perk", Run: v.viewPerk},
-		// ken.SubCommandHandler{Name: "item", Run: v.viewItem},
+		ken.SubCommandHandler{Name: "item", Run: v.viewItem},
 		// ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
 		// ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
 	)
@@ -108,11 +108,11 @@ var _ ken.SlashCommand = (*View)(nil)
 func (v *View) roleEmbed(role *data.Role) (*discordgo.MessageEmbed, error) {
 	color := 0x000000
 	switch role.Alignment {
-	case "LAWFUL":
+	case "Lawful":
 		color = discord.ColorThemeGreen
-	case "CHAOTIC":
+	case "Chaotic":
 		color = discord.ColorThemeRed
-	case "OUTLANDER":
+	case "Outlander":
 		color = discord.ColorThemeYellow
 	}
 
@@ -192,4 +192,49 @@ func (v *View) roleEmbed(role *data.Role) (*discordgo.MessageEmbed, error) {
 		},
 	}
 	return embed, nil
+}
+
+func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
+	color := 0x000000
+	switch item.Rarity {
+	case "Common":
+		color = discord.ColorItemCommon
+	case "Uncommon":
+		color = discord.ColorItemUncommon
+	case "Rare":
+		color = discord.ColorItemRare
+	case "Epic":
+		color = discord.ColorItemEpic
+	case "Legendary":
+		color = discord.ColorItemLegendary
+	case "Mythical":
+		color = discord.ColorItemMythical
+	case "Unique":
+		color = discord.ColorItemUncommon
+
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title:       item.Name,
+		Description: item.Description,
+		Color:       color,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "Cost: " + fmt.Sprint(item.Cost),
+		},
+	}
+	return embed, nil
+}
+
+func (v *View) viewItem(c ken.SubCommandContext) (err error) {
+	name := c.Options().GetByName("name").StringValue()
+	item, err := v.models.Items.GetByName(name)
+	if err != nil {
+		return discord.AlexError(c, "Idk lol")
+	}
+	embed, err := v.itemEmbed(item)
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Idk lol")
+	}
+	return c.RespondEmbed(embed)
 }

@@ -15,12 +15,12 @@ type Item struct {
 }
 
 type ItemModel struct {
-	Ddb *sqlx.DB
+	*sqlx.DB
 }
 
 func (m *ItemModel) Get(id int) (*Item, error) {
 	var item Item
-	err := m.Ddb.Get(&item, "SELECT * FROM items WHERE id = $1", id)
+	err := m.DB.Get(&item, "SELECT * FROM items WHERE id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (m *ItemModel) Get(id int) (*Item, error) {
 
 func (m *ItemModel) GetAll() ([]*Item, error) {
 	var items []*Item
-	err := m.Ddb.Select(&items, "SELECT * FROM items")
+	err := m.DB.Select(&items, "SELECT * FROM items")
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (m *ItemModel) GetAll() ([]*Item, error) {
 
 func (m *ItemModel) GetByName(name string) (*Item, error) {
 	var item Item
-	err := m.Ddb.Get(&item, "SELECT * FROM items WHERE name ILIKE $1", name)
+	err := m.DB.Get(&item, "SELECT * FROM items WHERE name ILIKE $1", name)
 	if err != nil {
 		return nil, err
 	}
