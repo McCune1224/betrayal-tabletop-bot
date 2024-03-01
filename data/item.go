@@ -44,3 +44,14 @@ func (m *ItemModel) GetByName(name string) (*Item, error) {
 	}
 	return &item, nil
 }
+
+func (im *ItemModel) GetByRarity(rarity string) ([]Item, error) {
+	var items []Item
+
+	err := im.DB.Select(&items, "SELECT * FROM items WHERE rarity ILIKE $1", rarity)
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}

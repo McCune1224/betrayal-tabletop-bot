@@ -21,6 +21,8 @@ func (v *View) Initialize(models *data.Models) {
 	v.models = models
 }
 
+var _ ken.SlashCommand = (*View)(nil)
+
 // Description implements ken.SlashCommand.
 func (*View) Description() string {
 	return "is this thing on?"
@@ -116,7 +118,6 @@ func (*View) Version() string {
 	return "1.0.0"
 }
 
-var _ ken.SlashCommand = (*View)(nil)
 
 func (v *View) roleEmbed(role *data.Role) (*discordgo.MessageEmbed, error) {
 	color := 0x000000
