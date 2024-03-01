@@ -95,4 +95,24 @@ func TestReadItemCSV(t *testing.T) {
 	}
 }
 
-// command to go test only TestReadItemCSV:
+func TestReadStatusCSV(t *testing.T) {
+	dbStr := os.Getenv("DATABASE_URL")
+	db, err := sqlx.Open("postgres", dbStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filepath := "./Betrayal Tabletop Online (BTO) Information Spreadsheet [2024] - Statuses.csv"
+	entries, err := ReadStatusCSV(filepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range entries {
+		fmt.Println("Inserting", v.Name)
+		status := v
+		// Insert status into psql database
+		_, err := db.NamedExec("INSERT INTO statuses (name, description) VALUES (:name, :description)", status)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}

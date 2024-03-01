@@ -141,3 +141,35 @@ func ReadItemCSV(filepath string) ([]data.Item, error) {
 
 	return items, nil
 }
+
+func ReadStatusCSV(filepath string) ([]data.Status, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	reader := csv.NewReader(file)
+	statuses := []data.Status{}
+	i := 0
+	for {
+		var status data.Status
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// skip first line of csv
+		if i == 0 || i == 1 {
+			i++
+			continue
+		}
+		status.Name = strings.TrimSpace(record[1])
+		status.Description = strings.TrimSpace(record[2])
+		statuses = append(statuses, status)
+		i++
+	}
+
+	return statuses, nil
+}

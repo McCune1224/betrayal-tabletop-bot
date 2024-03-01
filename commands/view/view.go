@@ -66,6 +66,14 @@ func (*View) Options() []*discordgo.ApplicationCommandOption {
 				discord.StringCommandArg("name", "Name of the role", true),
 			},
 		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "status",
+			Description: "View a status",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.StringCommandArg("name", "Name of the status", true),
+			},
+		},
 	}
 }
 
@@ -76,7 +84,7 @@ func (v *View) Run(ctx ken.Context) (err error) {
 		// ken.SubCommandHandler{Name: "ability", Run: v.viewAbility},
 		// ken.SubCommandHandler{Name: "perk", Run: v.viewPerk},
 		ken.SubCommandHandler{Name: "item", Run: v.viewItem},
-		// ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
+		ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
 		// ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
 	)
 	return err
@@ -214,12 +222,28 @@ func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
 
 	}
 
+	categories := strings.Join(item.Categories, ", ")
+	fields := []*discordgo.MessageEmbedField{}
+	fields = append(fields, &discordgo.MessageEmbedField{
+		Name:   "Categories",
+		Value:  categories,
+		Inline: false,
+	})
+
+	costStr := ""
+	if item.Cost == -1 {
+		costStr = infinity
+	} else {
+		costStr = fmt.Sprint(item.Cost)
+	}
+
 	embed := &discordgo.MessageEmbed{
 		Title:       item.Name,
 		Description: item.Description,
+		Fields:      fields,
 		Color:       color,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Cost: " + fmt.Sprint(item.Cost),
+			Text: costStr,
 		},
 	}
 	return embed, nil
@@ -235,6 +259,22 @@ func (v *View) viewItem(c ken.SubCommandContext) (err error) {
 	if err != nil {
 		log.Println(err)
 		return discord.AlexError(c, "Idk lol")
+	}
+	return c.RespondEmbed(embed)
+}
+
+func (v *View) viewStatus(c ken.SubCommandContext) (err error) {
+	name := c.Options().GetByName("name").StringValue()
+	status, err := v.models.Statuses.GetByName(name)
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Idk lol")
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title:       status.Name,
+		Description: status.Description,
+		Color:       discord.ColorThemeWhite,
 	}
 	return c.RespondEmbed(embed)
 }

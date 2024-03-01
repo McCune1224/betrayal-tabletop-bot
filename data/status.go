@@ -28,7 +28,7 @@ func (m *StatusModel) GetByID(id int) (Status, error) {
 
 func (m *StatusModel) GetByName(name string) (Status, error) {
 	var status Status
-	query := `SELECT * FROM statuses WHERE name = $1`
+	query := `SELECT * FROM statuses WHERE name ILIKE $1`
 	err := m.Get(&status, query, name)
 	return status, err
 }
