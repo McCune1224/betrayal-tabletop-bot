@@ -42,3 +42,13 @@ func (am *AbilityModel) GetByName(name string) (*Ability, error) {
 	}
 	return &ability, nil
 }
+
+func (am *AbilityModel) GetAll() ([]*Ability, error) {
+	query := `SELECT * FROM abilities`
+	var abilities []*Ability
+	err := am.Select(&abilities, query)
+	if err != nil {
+		return nil, err
+	}
+	return abilities, nil
+}

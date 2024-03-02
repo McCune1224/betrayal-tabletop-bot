@@ -33,3 +33,13 @@ func (pm *PassiveModel) GetByName(name string) (*Passive, error) {
 	}
 	return &passive, nil
 }
+
+func (pm *PassiveModel) GetAll() ([]*Passive, error) {
+	query := `SELECT * FROM passives`
+	var passives []*Passive
+	err := pm.Select(&passives, query)
+	if err != nil {
+		return nil, err
+	}
+	return passives, nil
+}

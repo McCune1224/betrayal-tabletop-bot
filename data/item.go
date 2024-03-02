@@ -55,3 +55,12 @@ func (im *ItemModel) GetByRarity(rarity string) ([]Item, error) {
 
 	return items, nil
 }
+
+func (im *ItemModel) GetRandomByRarity(rarity string) (*Item, error) {
+	var item Item
+	err := im.DB.Get(&item, "SELECT * FROM items WHERE rarity ILIKE $1 ORDER BY RANDOM() LIMIT 1", rarity)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}

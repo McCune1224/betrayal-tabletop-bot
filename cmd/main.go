@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
+	"github.com/mccune1224/betrayal-tabletop-bot/commands/roll"
 	"github.com/mccune1224/betrayal-tabletop-bot/commands/view"
 	"github.com/mccune1224/betrayal-tabletop-bot/data"
 	"github.com/mccune1224/betrayal-tabletop-bot/discord"
@@ -120,7 +121,7 @@ func main() {
 
 	tally := app.RegisterBetrayalCommands(
 		// new(inventory.Inventory),
-		// new(roll.Roll),
+		new(roll.Roll),
 		// new(commands.ActionFunnel),
 		new(view.View),
 	// new(commands.List),

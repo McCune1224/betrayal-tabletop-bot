@@ -1,7 +1,8 @@
 package roll
 
 import (
-	"log"
+	"fmt"
+	"slices"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mccune1224/betrayal-tabletop-bot/data"
@@ -50,26 +51,26 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "rarity",
 					Description: "minimum rarity to roll for",
-					Required:    true,
+					Required:    false,
 					Choices:     minRarityOpts,
 				},
 			},
 		},
-		{
-			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			Name:        "ability",
-			Description: "roll an ability.",
-			Options: []*discordgo.ApplicationCommandOption{
-				discord.IntCommandArg("luck", "luck level", true),
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "rarity",
-					Description: "minimum rarity to roll for",
-					Required:    true,
-					Choices:     minRarityOpts,
-				},
-			},
-		},
+		// {
+		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
+		// 	Name:        "ability",
+		// 	Description: "roll an ability.",
+		// 	Options: []*discordgo.ApplicationCommandOption{
+		// 		discord.IntCommandArg("luck", "luck level", true),
+		// 		{
+		// 			Type:        discordgo.ApplicationCommandOptionString,
+		// 			Name:        "rarity",
+		// 			Description: "minimum rarity to roll for",
+		// 			Required:    true,
+		// 			Choices:     minRarityOpts,
+		// 		},
+		// 	},
+		// },
 	}
 }
 
@@ -95,12 +96,31 @@ func (r *Roll) rollItem(c ken.SubCommandContext) (err error) {
 		rarity = rOpt.StringValue()
 	}
 
-  _, err = r.models.Items.GetAll()
-  if err != nil {
-    log.Println(err)
-    log.Println(rarity)
-    log.Println(luck)
-    return discord.AlexError(c, "idk lol")
-  }
-  return c.RespondMessage("todo")
+	rarityRoll := rollAtRarity(float64(luck), rarityPriorities)
+	if byRarity {
+		minOption := slices.Index(rarityPriorities, rarity)
+		if minOption == -1 {
+			return discord.ErrorMessage(c, "Invalid rarity type", fmt.Sprintf("%s is not a valid rarity", rOpt))
+		}
+		for minOption > slices.Index(rarityPriorities, rarityRoll) {
+			// reroll if the roll is less than the minimum rarity
+			rarityRoll = rollAtRarity(float64(luck), rarityPriorities[:minOption+1])
+		}
+	}
+	item, err := r.models.Items.GetRandomByRarity(rarityRoll)
+	if err != nil {
+		return discord.ErrorMessage(c, "Error getting item", err.Error())
+	}
+
+	return c.RespondEmbed(&discordgo.MessageEmbed{
+		Title:       "Item Roll",
+		Description: fmt.Sprintf("You rolled a %s item: %s", rarityRoll, item.Name),
+		Fields: []*discordgo.MessageEmbedField{
+			{
+        Name: item.Name,
+        Value: item.Description,
+      },
+		},
+		Color: discord.ColorThemeWhite,
+	})
 }
