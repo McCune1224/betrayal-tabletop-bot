@@ -52,3 +52,13 @@ func (am *AbilityModel) GetAll() ([]*Ability, error) {
 	}
 	return abilities, nil
 }
+
+func (am *AbilityModel) GetRandomByRarity(rarity string) (*Ability, error) {
+	query := `SELECT * FROM abilities WHERE rarity ILIKE $1 ORDER BY random() LIMIT 1`
+	var ability Ability
+	err := am.DB.Get(&ability, query, rarity)
+	if err != nil {
+		return nil, err
+	}
+	return &ability, nil
+}

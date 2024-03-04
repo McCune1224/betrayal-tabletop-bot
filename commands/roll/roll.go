@@ -2,7 +2,9 @@ package roll
 
 import (
 	"fmt"
+	"log"
 	"slices"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mccune1224/betrayal-tabletop-bot/data"
@@ -56,21 +58,50 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 				},
 			},
 		},
-		// {
-		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-		// 	Name:        "ability",
-		// 	Description: "roll an ability.",
-		// 	Options: []*discordgo.ApplicationCommandOption{
-		// 		discord.IntCommandArg("luck", "luck level", true),
-		// 		{
-		// 			Type:        discordgo.ApplicationCommandOptionString,
-		// 			Name:        "rarity",
-		// 			Description: "minimum rarity to roll for",
-		// 			Required:    true,
-		// 			Choices:     minRarityOpts,
-		// 		},
-		// 	},
-		// },
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "ability",
+			Description: "roll an any ability.",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.IntCommandArg("luck", "luck level", true),
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "role",
+					Description: "role to roll for",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "rarity",
+					Description: "minimum rarity to roll for",
+					Required:    false,
+					// drop unique and mythical (currently not a possible roll)
+					Choices: minRarityOpts[:len(minRarityOpts)-1],
+				},
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "care_package",
+			Description: "roll a random item and any ability",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.IntCommandArg("luck", "luck level", true),
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "role",
+					Description: "role to roll for",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "rarity",
+					Description: "minimum rarity to roll for",
+					Required:    false,
+					// drop unique and mythical (currently not a possible roll)
+					Choices: minRarityOpts,
+				},
+			},
+		},
 	}
 }
 
@@ -78,6 +109,8 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 func (r *Roll) Run(ctx ken.Context) (err error) {
 	err = ctx.HandleSubCommands(
 		ken.SubCommandHandler{Name: "item", Run: r.rollItem},
+		ken.SubCommandHandler{Name: "ability", Run: r.rollAbility},
+		ken.SubCommandHandler{Name: "care_package", Run: r.rollCarePackage},
 	)
 	return err
 }
@@ -88,6 +121,10 @@ func (*Roll) Version() string {
 }
 
 func (r *Roll) rollItem(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		log.Println(err)
+		return err
+	}
 	luck := c.Options().GetByName("luck").IntValue()
 	rOpt, ok := c.Options().GetByNameOptional("rarity")
 	byRarity := ok
@@ -117,10 +154,118 @@ func (r *Roll) rollItem(c ken.SubCommandContext) (err error) {
 		Description: fmt.Sprintf("You rolled a %s item: %s", rarityRoll, item.Name),
 		Fields: []*discordgo.MessageEmbedField{
 			{
-        Name: item.Name,
-        Value: item.Description,
-      },
+				Name:  item.Name,
+				Value: item.Description,
+			},
 		},
 		Color: discord.ColorThemeWhite,
+	})
+}
+
+func (r *Roll) rollAbility(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		log.Println(err)
+		return err
+	}
+	argLuck := c.Options().GetByName("luck").IntValue()
+	argRole := c.Options().GetByName("role").StringValue()
+	argRarity, ok := c.Options().GetByNameOptional("rarity")
+	minRarity := ""
+	if ok {
+		minRarity = argRarity.StringValue()
+	}
+	role, err := r.models.Roles.GetByName(argRole)
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Lol idk")
+	}
+
+	var ability *data.Ability
+	if minRarity != "" {
+		rIdx := slices.Index(rarityPriorities, minRarity)
+		if rIdx == -1 {
+			return discord.ErrorMessage(c, "Invalid rarity", fmt.Sprintf("%s is not a valid rarity", minRarity))
+		}
+		// Drop the last 2 rarities, as we ability only has rarities up to legendary
+		choices := rarityPriorities[rIdx:(len(rarityPriorities) - 1)]
+		rarityRoll := rollAtRarity(float64(argLuck), choices)
+		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+		for ability.RoleSpecific != "" && strings.EqualFold(ability.RoleSpecific, role.Name) {
+			ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+			if err != nil {
+				log.Println(err)
+				return discord.AlexError(c, "Lol idk")
+			}
+		}
+	} else {
+		rarityRoll := rollAtRarity(float64(argLuck), rarityPriorities)
+		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+	}
+
+	return c.RespondEmbed(&discordgo.MessageEmbed{
+		Title:       fmt.Sprintf("Rolled ability '%s' - %s", ability.Name, ability.Rarity),
+		Description: ability.Description,
+	})
+}
+
+// rollCarePackage rolls a random item and ability
+func (r *Roll) rollCarePackage(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		log.Println(err)
+		return err
+	}
+	argLuck := c.Options().GetByName("luck").IntValue()
+	argRole := c.Options().GetByName("role").StringValue()
+	item, err := r.models.Items.GetRandomByRarity(rollAtRarity(float64(argLuck), rarityPriorities))
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Lol idk")
+	}
+
+	role, err := r.models.Roles.GetByName(argRole)
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Lol idk")
+	}
+
+	var ability *data.Ability
+	rarityRoll := rollAtRarity(float64(argLuck), rarityPriorities)
+  if rarityRoll == "mythical" || rarityRoll == "unique" {
+    rarityRoll = "legendary"
+  }
+	ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+	if err != nil {
+		log.Println(err)
+		return discord.AlexError(c, "Lol idk")
+	}
+	for ability.RoleSpecific != "" && strings.EqualFold(ability.RoleSpecific, role.Name) {
+		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+	}
+
+	return c.RespondEmbed(&discordgo.MessageEmbed{
+		Title:       "Care Package",
+		Description: "You rolled a care package!",
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:  "Item",
+				Value: fmt.Sprintf("%s - %s\n%s", item.Name, item.Rarity, item.Description),
+			},
+			{
+				Name:  "Ability",
+				Value: fmt.Sprintf("%s - %s\n%s", ability.Name, ability.Rarity, ability.Description),
+			},
+		},
 	})
 }

@@ -95,7 +95,12 @@ func (v *View) Options() []*discordgo.ApplicationCommandOption {
 		{
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
 			Name:        "duel",
-			Description: "View how minigame Duel works",
+			Description: "View how minigame 'Duel' works",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "care_package",
+			Description: "Learn about 'Care Package' Drops",
 		},
 	}
 }
@@ -109,6 +114,7 @@ func (v *View) Run(ctx ken.Context) (err error) {
 		ken.SubCommandHandler{Name: "item", Run: v.viewItem},
 		ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
 		ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
+		ken.SubCommandHandler{Name: "care_package", Run: v.viewCarePackage},
 	)
 	return err
 }
@@ -267,6 +273,7 @@ func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
 
 func (v *View) viewItem(c ken.SubCommandContext) (err error) {
 	if err = c.Defer(); err != nil {
+    log.Println(err)
 		return err
 	}
 	name := c.Options().GetByName("name").StringValue()
@@ -458,4 +465,15 @@ func (v *View) viewAbility(ctx ken.SubCommandContext) (err error) {
 	}
 
 	return ctx.RespondEmbed(abilityEmbed)
+}
+
+func (v *View) viewCarePackage(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+
+	return c.RespondEmbed(&discordgo.MessageEmbed{
+		Title:       "Care Package",
+		Description: "Granted 1 random item and Any Ability, higher luck increases the chance of higher rarity of items and abilities",
+	})
 }
