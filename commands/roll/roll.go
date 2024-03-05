@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"slices"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mccune1224/betrayal-tabletop-bot/data"
@@ -66,12 +65,6 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 				discord.IntCommandArg("luck", "luck level", true),
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "role",
-					Description: "role to roll for",
-					Required:    true,
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "rarity",
 					Description: "minimum rarity to roll for",
 					Required:    false,
@@ -86,12 +79,6 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 			Description: "roll a random item and any ability",
 			Options: []*discordgo.ApplicationCommandOption{
 				discord.IntCommandArg("luck", "luck level", true),
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "role",
-					Description: "role to roll for",
-					Required:    true,
-				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "rarity",
@@ -137,7 +124,7 @@ func (r *Roll) rollItem(c ken.SubCommandContext) (err error) {
 	if byRarity {
 		minOption := slices.Index(rarityPriorities, rarity)
 		if minOption == -1 {
-			return discord.ErrorMessage(c, "Invalid rarity type", fmt.Sprintf("%s is not a valid rarity", rOpt))
+			return discord.ErrorMessage(c, "Invalid rarity type", fmt.Sprintf("%s is not a valid rarity", rarity))
 		}
 		for minOption > slices.Index(rarityPriorities, rarityRoll) {
 			// reroll if the roll is less than the minimum rarity
@@ -168,16 +155,10 @@ func (r *Roll) rollAbility(c ken.SubCommandContext) (err error) {
 		return err
 	}
 	argLuck := c.Options().GetByName("luck").IntValue()
-	argRole := c.Options().GetByName("role").StringValue()
 	argRarity, ok := c.Options().GetByNameOptional("rarity")
 	minRarity := ""
 	if ok {
 		minRarity = argRarity.StringValue()
-	}
-	role, err := r.models.Roles.GetByName(argRole)
-	if err != nil {
-		log.Println(err)
-		return discord.AlexError(c, "Lol idk")
 	}
 
 	var ability *data.Ability
@@ -193,13 +174,6 @@ func (r *Roll) rollAbility(c ken.SubCommandContext) (err error) {
 		if err != nil {
 			log.Println(err)
 			return discord.AlexError(c, "Lol idk")
-		}
-		for ability.RoleSpecific != "" && strings.EqualFold(ability.RoleSpecific, role.Name) {
-			ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
-			if err != nil {
-				log.Println(err)
-				return discord.AlexError(c, "Lol idk")
-			}
 		}
 	} else {
 		rarityRoll := rollAtRarity(float64(argLuck), rarityPriorities)
@@ -223,14 +197,7 @@ func (r *Roll) rollCarePackage(c ken.SubCommandContext) (err error) {
 		return err
 	}
 	argLuck := c.Options().GetByName("luck").IntValue()
-	argRole := c.Options().GetByName("role").StringValue()
 	item, err := r.models.Items.GetRandomByRarity(rollAtRarity(float64(argLuck), rarityPriorities))
-	if err != nil {
-		log.Println(err)
-		return discord.AlexError(c, "Lol idk")
-	}
-
-	role, err := r.models.Roles.GetByName(argRole)
 	if err != nil {
 		log.Println(err)
 		return discord.AlexError(c, "Lol idk")
@@ -238,22 +205,14 @@ func (r *Roll) rollCarePackage(c ken.SubCommandContext) (err error) {
 
 	var ability *data.Ability
 	rarityRoll := rollAtRarity(float64(argLuck), rarityPriorities)
-  if rarityRoll == "mythical" || rarityRoll == "unique" {
-    rarityRoll = "legendary"
-  }
+	if rarityRoll == "mythical" || rarityRoll == "unique" {
+		rarityRoll = "legendary"
+	}
 	ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
 	if err != nil {
 		log.Println(err)
 		return discord.AlexError(c, "Lol idk")
 	}
-	for ability.RoleSpecific != "" && strings.EqualFold(ability.RoleSpecific, role.Name) {
-		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
-		if err != nil {
-			log.Println(err)
-			return discord.AlexError(c, "Lol idk")
-		}
-	}
-
 	return c.RespondEmbed(&discordgo.MessageEmbed{
 		Title:       "Care Package",
 		Description: "You rolled a care package!",
