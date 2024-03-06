@@ -96,3 +96,12 @@ func (rm *RoleModel) GetAllByAbilityID(id int) ([]*Role, error) {
 	}
 	return roles, nil
 }
+
+func (rm *RoleModel) GetRandomRole() (*Role, error) {
+	var role Role
+	err := rm.DB.Get(&role, "SELECT * FROM roles ORDER BY random() LIMIT 1")
+	if err != nil {
+		return nil, err
+	}
+	return &role, nil
+}
