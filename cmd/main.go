@@ -11,9 +11,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
+	"github.com/mccune1224/betrayal-tabletop-bot/commands/action"
 	"github.com/mccune1224/betrayal-tabletop-bot/commands/random"
 	"github.com/mccune1224/betrayal-tabletop-bot/commands/roll"
 	"github.com/mccune1224/betrayal-tabletop-bot/commands/view"
+	"github.com/mccune1224/betrayal-tabletop-bot/commands/vote"
 	"github.com/mccune1224/betrayal-tabletop-bot/data"
 	"github.com/mccune1224/betrayal-tabletop-bot/discord"
 	"github.com/mccune1224/betrayal-tabletop-bot/util"
@@ -124,6 +126,8 @@ func main() {
 		new(roll.Roll),
 		new(view.View),
 		new(random.Random),
+		new(vote.Vote),
+		new(action.Action),
 	)
 
 	app.betrayalManager.Session().AddHandler(logHandler)
