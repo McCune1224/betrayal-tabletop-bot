@@ -1,8 +1,6 @@
 package discord
 
 import (
-	"log"
-
 	"github.com/bwmarrin/discordgo"
 	"github.com/zekrotja/ken"
 )
@@ -50,15 +48,24 @@ func GetAdminRoleUsers(s *discordgo.Session, e *discordgo.InteractionCreate, adm
 // Get all the players within a guild that have the specified role
 func GetMembersWithRole(s *discordgo.Session, e *discordgo.InteractionCreate, roleID string) []*discordgo.Member {
 	members, _ := s.GuildMembers(e.GuildID, "", 1000)
-	log.Println(len(members))
 	var roleMembers []*discordgo.Member
 	for _, m := range members {
 		for _, rid := range m.Roles {
 			if rid == roleID {
-				log.Println("HIT")
 				roleMembers = append(roleMembers, m)
 			}
 		}
 	}
 	return roleMembers
+}
+
+func GetMembersWithRoleName(s *discordgo.Session, e *discordgo.InteractionCreate, roleName string) []*discordgo.Member {
+	guildRoles, _ := s.GuildRoles(e.GuildID)
+	var roleID string
+	for _, r := range guildRoles {
+		if r.Name == roleName {
+			roleID = r.ID
+		}
+	}
+	return GetMembersWithRole(s, e, roleID)
 }

@@ -94,6 +94,11 @@ func (v *View) Options() []*discordgo.ApplicationCommandOption {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "all_statuses",
+			Description: "View all status",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
 			Name:        "duel",
 			Description: "View how minigame 'Duel' works",
 		},
@@ -101,6 +106,26 @@ func (v *View) Options() []*discordgo.ApplicationCommandOption {
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
 			Name:        "care_package",
 			Description: "Learn about 'Care Package' Drops",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "night_order",
+			Description: "View the order of how actions are processed during the night",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "actions",
+			Description: "View actions that can be taken during a cycle",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "deceased",
+			Description: "View all players marked as deceased",
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "daily_events",
+			Description: "View all daily events.",
 		},
 	}
 }
@@ -113,8 +138,13 @@ func (v *View) Run(ctx ken.Context) (err error) {
 		ken.SubCommandHandler{Name: "passive", Run: v.viewPassive},
 		ken.SubCommandHandler{Name: "item", Run: v.viewItem},
 		ken.SubCommandHandler{Name: "status", Run: v.viewStatus},
+		ken.SubCommandHandler{Name: "all_statuses", Run: v.viewAllStatuses},
 		ken.SubCommandHandler{Name: "duel", Run: v.viewDuel},
 		ken.SubCommandHandler{Name: "care_package", Run: v.viewCarePackage},
+		ken.SubCommandHandler{Name: "night_order", Run: v.viewNightOrder},
+		ken.SubCommandHandler{Name: "actions", Run: v.viewActions},
+		ken.SubCommandHandler{Name: "deceased", Run: v.viewDeceased},
+		ken.SubCommandHandler{Name: "daily_events", Run: v.viewDailyEvents},
 	)
 	return err
 }
@@ -273,7 +303,7 @@ func (v *View) itemEmbed(item *data.Item) (*discordgo.MessageEmbed, error) {
 
 func (v *View) viewItem(c ken.SubCommandContext) (err error) {
 	if err = c.Defer(); err != nil {
-    log.Println(err)
+		log.Println(err)
 		return err
 	}
 	name := c.Options().GetByName("name").StringValue()
@@ -476,4 +506,123 @@ func (v *View) viewCarePackage(c ken.SubCommandContext) (err error) {
 		Title:       "Care Package",
 		Description: "Granted 1 random item and Any Ability, higher luck increases the chance of higher rarity of items and abilities",
 	})
+}
+
+func (v *View) viewAllStatuses(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+	statuses, err := v.models.Statuses.GetAll()
+	if err != nil {
+		return discord.AlexError(c, "idk lol")
+	}
+
+	msg := discordgo.MessageEmbed{
+		Title:       "Statuses",
+		Description: "All Statuses",
+	}
+
+	for _, s := range statuses {
+		msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+			Name:  s.Name,
+			Value: s.Description,
+		})
+	}
+
+	return c.RespondEmbed(&msg)
+}
+
+func (v *View) viewNightOrder(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+	order := []string{"Alteration", "Reactive", "Redirection", "Protection", "Visit Blocking", "Vote Manipulation", "Support", "Debuff", "Theft", "Healing", "Destruction", "Killing"}
+	msg := discordgo.MessageEmbed{}
+	msg.Title = "Night Order"
+	msg.Description = "The order in which actions are processed during the night"
+	for i, o := range order {
+		msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+			Name:  fmt.Sprintf("%d. %s", i+1, o),
+			Value: "",
+		})
+	}
+	msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+		Value: "During the Night, players are able to do actions if they have enough action slots remaining to permit it (each player may do max three per cycle). All AAs, Abilities, and Items are codified by one of the twelve types above.",
+	})
+	msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+		Value: "The Judge ability/AA Forced Trial, for example, is codified as such: (Alteration/Neutral/Non-visiting/Night). This means that after the Host has woken everyone and seen who is doing what, this ability will trigger very early in the Night Order (likely, first, although if multiple people do Alteration abilities, it will be rng'd which occurs first, in the case of Forced Trial, whether it is the first or third alteration ability to be processed will likely not matter, but for other types it can be more important, the order in which they are processed).",
+	})
+	return c.RespondEmbed(&msg)
+}
+
+func (v *View) viewActions(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+
+	msg := discordgo.MessageEmbed{}
+	msg.Title = "Actions"
+	msg.Description = "Actions that can be taken during a cycle"
+
+	msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+		Name:  "Players can take up to three actions per cycle (Day 1 + Night 1 = one cycle).",
+		Value: "Types of actions include:\n",
+	})
+
+	actions := []string{"Using an ability from role card", "Using an AA (Any Ability)", "Using an item", "Purchasing an item", "Sending an item to another player", "Switching seats with another player", "Creating an alliance/coalition", "Accepting an alliance/coalition", "Leaving an alliance/coalition", "Using a Betrayal token"}
+	for i, a := range actions {
+		msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+			Name:  fmt.Sprintf("%d. %s", i+1, a),
+			Value: "",
+		})
+	}
+
+	return c.RespondEmbed(&msg)
+}
+
+func (v *View) viewDeceased(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+	deceased := discord.GetMembersWithRoleName(c.GetSession(), c.GetEvent(), "Deceased")
+
+	msg := discordgo.MessageEmbed{}
+	msg.Title = fmt.Sprintf("%d Deceased Players", len(deceased))
+	for _, m := range deceased {
+		msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+			Name:  m.User.Username,
+			Value: "",
+		})
+	}
+
+	return c.RespondEmbed(&msg)
+}
+
+func (v *View) viewDailyEvents(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		return err
+	}
+	msg := discordgo.MessageEmbed{}
+	msg.Title = "Daily Events"
+	msg.Description = "In addition to the day specific events below, a player will be voted out every day. Following the day phase, the game enters night. Abilities that are codified as Night, can only be used during this period."
+
+	events := []string{
+		"Day 1 (game start): Care package (one AA + one item, rng’d)",
+		"Day 2: Valentines Day. Each player must choose another, the most voted gets elimination immunity (cannot vote for yourself).",
+		"Day 3: Item Rain (1-3 random items, rarity is dependent on luck)",
+		"Day 4: Power Drop (All players gain an AA, rarity is dependent on luck)",
+		"Day 5: Rock Paper Scissors tournament. Everyone plays rock, paper, scissors. Winner gets a special prize. Host creates the prize package prior to game start.",
+		"Day 6: Item Rain (1-3 random items, rarity is dependent on luck)",
+		"Day 7: Coin Rain (All Players get x2 coins) & Power Drop (All players gain an AA, rarity is dependent on luck)",
+		"Day 8:  Valentines Day. Each player must choose another, the most voted gets elimination immunity (cannot vote for yourself).",
+		"Day 9: Item Rain (1-3 random items, rarity is dependent on luck). Revival opportunities for graveyard end Day 9.",
+		"Day 10:  Duels. Choose to challenge someone to a duel. Life is at stake.",
+	}
+	for _, e := range events {
+		msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+			Name:  e,
+			Value: "",
+		})
+	}
+	return c.RespondEmbed(&msg)
 }

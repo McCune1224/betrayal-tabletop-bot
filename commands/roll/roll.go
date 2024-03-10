@@ -104,6 +104,22 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 				},
 			},
 		},
+		{
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Name:        "power_drop",
+			Description: "roll an any ability.",
+			Options: []*discordgo.ApplicationCommandOption{
+				discord.IntCommandArg("luck", "luck level", true),
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "rarity",
+					Description: "minimum rarity to roll for",
+					Required:    false,
+					// drop unique and mythical (currently not a possible roll)
+					Choices: minRarityOpts[:len(minRarityOpts)-1],
+				},
+			},
+		},
 	}
 }
 
@@ -114,6 +130,7 @@ func (r *Roll) Run(ctx ken.Context) (err error) {
 		ken.SubCommandHandler{Name: "ability", Run: r.rollAbility},
 		ken.SubCommandHandler{Name: "care_package", Run: r.rollCarePackage},
 		ken.SubCommandHandler{Name: "item_rain", Run: r.rollItemRain},
+		ken.SubCommandHandler{Name: "power_drop", Run: r.rollPowerDrop},
 	)
 	return err
 }
@@ -289,7 +306,53 @@ func (r *Roll) rollItemRain(c ken.SubCommandContext) (err error) {
 	}
 	return c.RespondEmbed(&discordgo.MessageEmbed{
 		Title:       "Item Rain",
-		Description: "You rolled an item rain!",
+		Description: fmt.Sprintf("You rolled %d item(s)", rolls),
 		Fields:      fields,
+	})
+}
+
+func (r *Roll) rollPowerDrop(c ken.SubCommandContext) (err error) {
+	if err = c.Defer(); err != nil {
+		log.Println(err)
+		return err
+	}
+	argLuck := c.Options().GetByName("luck").IntValue()
+	argRarity, ok := c.Options().GetByNameOptional("rarity")
+	minRarity := ""
+	if ok {
+		minRarity = argRarity.StringValue()
+	}
+
+	var ability *data.Ability
+	if minRarity != "" {
+		rIdx := slices.Index(rarityPriorities, minRarity)
+		if rIdx == -1 {
+			return discord.ErrorMessage(c, "Invalid rarity", fmt.Sprintf("%s is not a valid rarity", minRarity))
+		}
+		// Drop the last 2 rarities, as we ability only has rarities up to legendary
+		choices := rarityPriorities[rIdx:(len(rarityPriorities) - 1)]
+		rarityRoll := rollAtRarity(float64(argLuck), choices)
+		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+	} else {
+		rarityRoll := rollAtRarity(float64(argLuck), rarityPriorities)
+		ability, err = r.models.Abilities.GetRandomByRarity(rarityRoll)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+	}
+
+	return c.RespondEmbed(&discordgo.MessageEmbed{
+		Title: "Power Drop Rolled!",
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:  fmt.Sprintf("%s - %s", ability.Name, ability.Rarity),
+				Value: ability.Description,
+			},
+		},
 	})
 }
