@@ -37,6 +37,10 @@ func (*View) Name() string {
 // Options implements ken.SlashCommand.
 func (v *View) Options() []*discordgo.ApplicationCommandOption {
 	statusChoices := []*discordgo.ApplicationCommandOptionChoice{}
+	statusChoices = append(statusChoices, &discordgo.ApplicationCommandOptionChoice{
+		Name:  "All Statuses",
+		Value: "All Statuses",
+	})
 	statuses, _ := v.models.Statuses.GetAll()
 	for _, s := range statuses {
 		statusChoices = append(statusChoices, &discordgo.ApplicationCommandOptionChoice{
@@ -337,7 +341,30 @@ func (v *View) viewStatus(c ken.SubCommandContext) (err error) {
 	if err = c.Defer(); err != nil {
 		return err
 	}
+
 	name := c.Options().GetByName("name").StringValue()
+
+	if name == "All Statuses" {
+		statuses, err := v.models.Statuses.GetAll()
+		if err != nil {
+			return discord.AlexError(c, "idk lol")
+		}
+
+		msg := discordgo.MessageEmbed{
+			Title:       "Statuses",
+			Description: "All Statuses",
+		}
+
+		for _, s := range statuses {
+			msg.Fields = append(msg.Fields, &discordgo.MessageEmbedField{
+				Name:  s.Name,
+				Value: s.Description,
+			})
+		}
+
+		return c.RespondEmbed(&msg)
+	}
+
 	status, err := v.models.Statuses.GetByName(name)
 	if err != nil {
 		log.Println(err)
