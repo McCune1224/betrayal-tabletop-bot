@@ -56,6 +56,14 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 					Required:    false,
 					Choices:     minRarityOpts,
 				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "exact",
+					Description: "exact rarity to roll for",
+					Required:    false,
+					// drop unique and mythical (currently not a possible roll)
+					Choices: minRarityOpts[:len(minRarityOpts)-1],
+				},
 			},
 		},
 		{
@@ -68,6 +76,14 @@ func (*Roll) Options() []*discordgo.ApplicationCommandOption {
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "rarity",
 					Description: "minimum rarity to roll for",
+					Required:    false,
+					// drop unique and mythical (currently not a possible roll)
+					Choices: minRarityOpts[:len(minRarityOpts)-1],
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "exact",
+					Description: "exact rarity to roll for",
 					Required:    false,
 					// drop unique and mythical (currently not a possible roll)
 					Choices: minRarityOpts[:len(minRarityOpts)-1],
@@ -147,10 +163,29 @@ func (r *Roll) rollItem(c ken.SubCommandContext) (err error) {
 	}
 	luck := c.Options().GetByName("luck").IntValue()
 	rOpt, ok := c.Options().GetByNameOptional("rarity")
+	eOpt, eOk := c.Options().GetByNameOptional("exact")
 	byRarity := ok
 	rarity := ""
 	if byRarity {
 		rarity = rOpt.StringValue()
+	}
+
+	if eOk {
+		item, err := r.models.Items.GetRandomByRarity(eOpt.StringValue())
+		if err != nil {
+			return discord.ErrorMessage(c, "Error getting item", err.Error())
+		}
+		return c.RespondEmbed(&discordgo.MessageEmbed{
+			Title:       "Item Roll",
+			Description: fmt.Sprintf("You rolled a %s item: %s", eOpt.StringValue(), item.Name),
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:  item.Name,
+					Value: item.Description,
+				},
+			},
+			Color: discord.ColorThemeWhite,
+		})
 	}
 
 	rarityRoll := rollAtRarity(float64(luck), rarityPriorities)
@@ -189,9 +224,23 @@ func (r *Roll) rollAbility(c ken.SubCommandContext) (err error) {
 	}
 	argLuck := c.Options().GetByName("luck").IntValue()
 	argRarity, ok := c.Options().GetByNameOptional("rarity")
+	argExact, eok := c.Options().GetByNameOptional("exact")
 	minRarity := ""
 	if ok {
 		minRarity = argRarity.StringValue()
+	}
+
+	if eok {
+		minRarity = argExact.StringValue()
+		ability, err := r.models.Abilities.GetRandomByRarity(minRarity)
+		if err != nil {
+			log.Println(err)
+			return discord.AlexError(c, "Lol idk")
+		}
+		return c.RespondEmbed(&discordgo.MessageEmbed{
+			Title:       fmt.Sprintf("Rolled ability '%s' - %s", ability.Name, ability.Rarity),
+			Description: ability.Description,
+		})
 	}
 
 	var ability *data.Ability
